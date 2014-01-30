@@ -5,18 +5,26 @@
 package mop
 
 import (
-	`bytes`
-	`fmt`
-	`io/ioutil`
-	`net/http`
-	`regexp`
-	`strings`
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"regexp"
+	"strings"
+
+	"code.google.com/p/go-html-transform/h5"
+	"code.google.com/p/go-html-transform/html/transform"
 )
 
-const marketURL = `http://finance.yahoo.com/` // `http://finance.yahoo.com/marketupdate/overview`
+//
+const marketURL = "http://finance.yahoo.com/marketupdate/overview"
 
-// Market stores current market information displayed in the top three lines of
-// the screen. The market data is fetched and parsed from the HTML page above.
+// Market stores current market information displayed in the top
+// three lines of the screen. The market data is fetched and parsed
+// from the HTML page above.
+// JSON, CSV, XML versions of this data are blocked by Dow (maybe
+// others too)
 type Market struct {
 	IsClosed  bool              // True when U.S. markets are closed.
 	Dow       map[string]string // Hash of Dow Jones indicators.
@@ -80,6 +88,7 @@ func (market *Market) Fetch() (self *Market) {
 	}()
 
 	response, err := http.Get(marketURL)
+	//market-panel-tab1
 	if err != nil {
 		panic(err)
 	}
@@ -89,6 +98,14 @@ func (market *Market) Fetch() (self *Market) {
 	if err != nil {
 		panic(err)
 	}
+	market.IsClosed = false //Always open
+
+	Tree, _ := h5.New(response.Body)
+	t := transform.New(Tree)
+	t.Apply(transform.CopyAnd(), "#market-panel-tab1")
+	log.Print(fmt.Sprintf("%+v", t))
+	//t.Apply(CopyAnd(myModifiers...), "li.menuitem")
+	//t.Apply(Replace(Text("my new text"), "a"))
 
 	body = market.checkIfMarketIsOpen(body)
 	return market.extract(market.trim(body))
